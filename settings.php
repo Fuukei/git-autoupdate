@@ -1,8 +1,10 @@
 <?php
 require_once __DIR__ . '/scheduler.php';
+require_once __DIR__ . '/git.php';
+
 $_schedules =  wp_get_schedules();
 $gitau_avaliable_intervals = array('daily', 'weekly', 'monthly');
-$gitau_avaliable_intervals_descriptions = array_map(function ($interval) use($_schedules) {
+$gitau_avaliable_intervals_descriptions = array_map(function ($interval) use ($_schedules) {
     return $_schedules[$interval]['display'];
 }, $gitau_avaliable_intervals);
 
@@ -154,7 +156,9 @@ function gitau_show_cron_status()
             // Check if the next scheduled time exists
             if ($next_time) {
                 // Format the next scheduled time
-                $next_time = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $next_time + get_option('gmt_offset') * 3600/**时区修正 */);
+                $next_time = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $next_time + get_option('gmt_offset') * 3600
+                    /**时区修正 */
+                );
 
                 // Output a notice that the cron event is scheduled
                 echo '<div class="notice notice-success">';
@@ -167,6 +171,20 @@ function gitau_show_cron_status()
                 echo '</div>';
             }
         }
+        $theme = wp_get_theme();
+        $is_support =  gitau_check_theme_support($theme);
+        // https://developer.wordpress.org/reference/hooks/admin_notices/
+        echo '<div class="notice notice-' . ($is_support ? 'success' : 'warning') . '"><p>' .
+            sprintf(
+                _x('You are using %1$s, ', "you are using {theme_name}", 'git-autoupdate'),
+                '<a href="' . $theme->get('ThemeURI') . '" rel="nofollow">'
+                    . $theme->get('Name')
+                    . '</a>'
+            ) .
+            ($is_support ?
+            __('git-autoupdate support this theme.', 'git-autoupdate') :
+            __('git-autoupdate is not support this theme.', 'git-autoupdate')) .
+            '</p></div>';
     }
 }
 add_action('admin_notices', 'gitau_show_cron_status');
