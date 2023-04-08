@@ -6,6 +6,19 @@
 if (!defined('ABSPATH')) {
 	exit;
 }
+function gitau_get_current_hash()
+{
+	exec('git rev-parse --short HEAD', $output, $return_var);
+	if ($return_var !== 0) {
+		return null;
+	}
+	return $output;
+}
+function gitau_get_theme_version()
+{
+	$theme = wp_get_theme();
+	return $theme->get('Version') . "(" . gitau_get_current_hash() . ")";
+}
 // Cron event callback function
 function gitau_update_theme()
 {
@@ -30,28 +43,43 @@ function gitau_update_theme()
 
 			// Check if the command was successful and the output contains "behind"
 			if ($return_var === 0 && strpos(implode("\n", $output), 'behind') !== false) {
+				$theme_version_pre = gitau_get_theme_version();
 				// Execute the git pull command to update the theme
 				exec('git pull', $output, $return_var);
 
 				// Check if the command was successful
 				if ($return_var === 0) {
 					// Log a success message
-					error_log('Git Auto Update: Theme updated successfully.');
+					gitau_cron_log_success($theme_version_pre, gitau_get_theme_version());
 				} else {
 					// Log an error message with the output and return value
-					error_log('Git Auto Update: Theme update failed. Output: ' . implode("\n", $output) . '. Return value: ' . $return_var);
+					gitau_cron_log_err(
+						__(
+							'Theme update failed. Output: %s. Return value: %d',
+							'git-autoupdate',
+							implode("\n", $output),
+							$return_var
+						)
+					);
 				}
 			} else {
 				// Log a message that there are no changes to update
-				error_log('Git Auto Update: Theme is up to date.');
+				gitau_cron_log_err(__('Theme is up to date.', 'git-autoupdate'));
 			}
 		} else {
 			// Log an error message with the output and return value
-			error_log('Git Auto Update: Theme fetch failed. Output: ' . implode("\n", $output) . '. Return value: ' . $return_var);
+			gitau_cron_log_err(
+				__(
+					'Theme fetch failed. Output: %s. Return value: %d',
+					'git-autoupdate',
+					implode("\n", $output),
+					$return_var
+				)
+			);
 		}
 	} else {
 		// Log a message that the theme directory is not a git repository
-		error_log('Git Auto Update: Theme directory is not a git repository.');
+		gitau_cron_log_err(__('Theme directory is not a git repository.', 'git-autoupdate'));
 	}
 }
 /**
@@ -63,7 +91,8 @@ function gitau_check_theme_support(WP_Theme $theme)
 	return is_dir($root_dir . '/.git');
 }
 
-function gitau_get_upstream(string $path){
+function gitau_get_upstream(string $path)
+{
 	exec("cd $path && git config --get remote.origin.url", $output);
-return $output;
+	return $output;
 }

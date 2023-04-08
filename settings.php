@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/scheduler.php';
 require_once __DIR__ . '/git.php';
+require_once __DIR__ . '/fs.php';
 
 $_schedules =  wp_get_schedules();
 $gitau_avaliable_intervals = array('daily', 'weekly', 'monthly');
@@ -60,7 +61,30 @@ add_action('admin_init', 'gitau_register_settings');
 function gitau_render_settings_page()
 {
 ?>
-    <h2>Git Auto Update Settings</h2>
+    <h2><?= __("Git Auto Update Settings", "git-autoupdate") ?></h2>
+    <h3><?= __("Execution History", "git-autoupdate") ?></h3>
+    <table>
+        <thead>
+            <tr>
+                <th><?= __("Theme Name", "git-autoupdate") ?></th>
+                <th><?= __("DateTime", "git-autoupdate") ?></th>
+                <th><?= __("Version Before Update", "git-autoupdate") ?></th>
+                <th><?= __("Version After Update", "git-autoupdate") ?></th>
+                <th><?= __("Error Message", "git-autoupdate") ?></th>
+            </tr>
+            <?php
+            foreach (gitau_read_log() as $key => $row) {
+                echo $row->isError ? '<tr style="background-color:#f006;">' : "<tr>";
+                echo "<td>$row->theme_name</td>";
+                echo "<td>$row->datetime</td>";
+                echo "<td>$row->theme_version_pre</td>";
+                echo "<td>$row->theme_version_post</td>";
+                echo "<td>$row->msg</td>";
+                echo "</tr>";
+            }
+            ?>
+        </thead>
+    </table>
     <form action="options.php" method="post">
         <?php
         settings_fields('gitau_settings');
@@ -156,7 +180,9 @@ function gitau_show_cron_status()
             // Check if the next scheduled time exists
             if ($next_time) {
                 // Format the next scheduled time
-                $next_time = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $next_time + get_option('gmt_offset') * 3600
+                $next_time = date_i18n(
+                    get_option('date_format') . ' ' . get_option('time_format'),
+                    $next_time + get_option('gmt_offset') * 3600
                     /**时区修正 */
                 );
 
@@ -182,8 +208,8 @@ function gitau_show_cron_status()
                     . '</a>'
             ) .
             ($is_support ?
-            __('git-autoupdate support this theme.', 'git-autoupdate') :
-            __('git-autoupdate is not support this theme.', 'git-autoupdate')) .
+                __('git-autoupdate support this theme.', 'git-autoupdate') :
+                __('git-autoupdate is not support this theme.', 'git-autoupdate')) .
             '</p></div>';
     }
 }
